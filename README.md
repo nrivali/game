@@ -29,15 +29,15 @@ avoids any cross-origin quirks.
 ## How it plays
 
 Zombies spawn on the right and shamble toward **your wall** on the left. A
-turret mounted on the wall **auto-fires at the nearest zombie**. Every kill pays
-a cash bounty; clearing a wave pays a bonus. Spend that cash in the live shop to
-survive deeper, tougher waves. The run ends when the wall's HP hits zero — it's
-**endless**, so the goal is to reach the highest wave you can.
+turret mounted on the wall **auto-fires at the nearest zombie** — the fight is
+won through upgrades, not aim. Every kill pays a cash bounty; clearing a wave
+pays a bonus. Spend that cash in the live shop to survive deeper, tougher waves.
+The run ends when the wall's HP hits zero — it's **endless**, so the goal is to
+reach the highest wave you can.
 
 | Action                | How                                            |
 | --------------------- | ---------------------------------------------- |
-| Auto-fire             | automatic — the turret tracks the nearest enemy |
-| Bonus shots           | **click** anywhere on the field (hits harder)   |
+| Fire                  | automatic — the turret tracks the nearest enemy |
 | Buy upgrades          | click an upgrade in the shop (any time)         |
 | Start the next wave   | the **Start Wave** button (early start = bonus) |
 | Restart after a loss  | **Play Again** on the game-over screen          |

@@ -32,7 +32,6 @@ const CONFIG = {
   TURRET_X: 70,        // turret pivot, mounted on the wall
 
   BULLET_SPEED: 660,
-  MANUAL_COOLDOWN: 150, // ms between player-clicked shots
 
   PREP_TIME: 9,         // seconds of build time between waves (auto-starts)
   EARLY_BONUS: 20,      // cash for starting a wave during prep
@@ -129,7 +128,6 @@ class GameScene extends Phaser.Scene {
     this.spawnQueue = [];     // pending zombies for the active wave
     this.spawnTimer = 0;
     this.autoCd = 0;          // turret auto-fire cooldown (ms)
-    this.manualCd = 0;        // player-click cooldown (ms)
 
     // upgrade levels (0-based). Derived stats are getters below.
     this.lv = { damage: 0, fireRate: 0, multishot: 0, pierce: 0, income: 0, maxhp: 0 };
@@ -153,17 +151,6 @@ class GameScene extends Phaser.Scene {
     // hp-bar overlay for zombies (one Graphics, redrawn each frame)
     this.hpGfx = this.add.graphics().setDepth(9);
 
-    // ---- input: click the field to fire bonus shots ----
-    this.input.on('pointerdown', (p) => {
-      if (this.state === 'over') return;
-      if (p.x < CONFIG.TURRET_X + 8) return; // ignore clicks on the wall itself
-      if (this.manualCd > 0) return;
-      this.manualCd = CONFIG.MANUAL_COOLDOWN;
-      const a = Phaser.Math.Angle.Between(CONFIG.TURRET_X, CONFIG.HEIGHT / 2, p.x, p.y);
-      this.fireBullet(a, 1.35); // manual shots hit a little harder
-      this.barrel.rotation = a;
-    });
-
     // ---- DOM wiring ----
     this.buildShop();
     this.wireDom();
@@ -184,8 +171,6 @@ class GameScene extends Phaser.Scene {
   update(_t, dms) {
     if (this.state === 'over') return;
     const dt = dms / 1000;
-
-    this.manualCd = Math.max(0, this.manualCd - dms);
 
     if (this.state === 'prep') {
       this.prepTimer -= dt;
@@ -354,18 +339,18 @@ class GameScene extends Phaser.Scene {
     const n = this.projectiles;
     const spread = 0.16;
     const start = -spread * (n - 1) / 2;
-    for (let i = 0; i < n; i++) this.fireBullet(angle + start + i * spread, 1);
+    for (let i = 0; i < n; i++) this.fireBullet(angle + start + i * spread);
     this.flashMuzzle(angle);
   }
 
-  fireBullet(angle, dmgMult) {
+  fireBullet(angle) {
     const tipX = CONFIG.TURRET_X + Math.cos(angle) * 28;
     const tipY = CONFIG.HEIGHT / 2 + Math.sin(angle) * 28;
     const b = this.bullets.create(tipX, tipY, 'bullet').setDepth(5);
     b.body.setSize(8, 8);
     this.physics.velocityFromRotation(angle, CONFIG.BULLET_SPEED, b.body.velocity);
     b.rotation = angle;
-    b.dmg = this.damage * dmgMult;
+    b.dmg = this.damage;
     b.pierceLeft = this.pierce;
     b.hitSet = new Set(); // avoid hitting the same zombie on consecutive frames
   }
