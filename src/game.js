@@ -34,17 +34,17 @@ const CONFIG = {
   BULLET_SPEED: 660,
   MANUAL_COOLDOWN: 150, // ms between player-clicked shots
 
-  PREP_TIME: 12,        // seconds of build time between waves (auto-starts)
+  PREP_TIME: 9,         // seconds of build time between waves (auto-starts)
   EARLY_BONUS: 20,      // cash for starting a wave during prep
 };
 
 /* zombie archetypes. hp / speed / bounty scale up with the wave number; the
  * values here are the wave-1 baseline. tint colours the (white) sprite. */
 const ZTYPES = {
-  walker: { hp: 22,  speed: 30, bounty: 5,   dmg: 8,  scale: 1.0, tint: 0x8fbf6f, label: false },
-  runner: { hp: 14,  speed: 74, bounty: 7,   dmg: 6,  scale: 0.8, tint: 0xe6d36a, label: false },
-  brute:  { hp: 90,  speed: 19, bounty: 22,  dmg: 22, scale: 1.6, tint: 0x6f9f95, label: true  },
-  boss:   { hp: 700, speed: 17, bounty: 180, dmg: 65, scale: 2.7, tint: 0xc25b5b, label: true  },
+  walker: { hp: 26,  speed: 32, bounty: 5,   dmg: 11,  scale: 1.0, tint: 0x8fbf6f, label: false },
+  runner: { hp: 16,  speed: 82, bounty: 7,   dmg: 9,   scale: 0.8, tint: 0xe6d36a, label: false },
+  brute:  { hp: 120, speed: 21, bounty: 22,  dmg: 30,  scale: 1.6, tint: 0x6f9f95, label: true  },
+  boss:   { hp: 900, speed: 19, bounty: 180, dmg: 95,  scale: 2.7, tint: 0xc25b5b, label: true  },
 };
 
 /* ----------------------------------------------------------------------------
@@ -123,7 +123,7 @@ class GameScene extends Phaser.Scene {
 
     // ---- run state ----
     this.wave = 0;            // incremented to 1 when the first wave starts
-    this.money = 60;
+    this.money = 45;
     this.state = 'prep';      // 'prep' | 'active' | 'over'
     this.prepTimer = C.PREP_TIME;
     this.spawnQueue = [];     // pending zombies for the active wave
@@ -219,21 +219,22 @@ class GameScene extends Phaser.Scene {
   // produce an ordered list of { type, gap } where gap is ms before spawning
   buildWave(w) {
     const q = [];
-    const count = 5 + Math.floor(w * 2.4);
-    const baseGap = Math.max(280, 820 - w * 22); // zombies arrive faster later
+    const count = 6 + Math.floor(w * 3.2);
+    const baseGap = Math.max(160, 760 - w * 28); // zombies arrive faster later
 
     // type availability + weighting ramps up with the wave
     for (let i = 0; i < count; i++) {
       const roll = Math.random();
       let type = 'walker';
-      if (w >= 4 && roll > 0.82) type = 'brute';
-      else if (w >= 3 && roll > 0.55) type = 'runner';
-      q.push({ type, gap: baseGap * Phaser.Math.FloatBetween(0.6, 1.25) });
+      if (w >= 3 && roll > 0.72) type = 'brute';
+      else if (w >= 2 && roll > 0.42) type = 'runner';
+      q.push({ type, gap: baseGap * Phaser.Math.FloatBetween(0.55, 1.2) });
     }
 
-    // a boss leads every 5th wave
+    // a boss with a brute escort leads every 5th wave
     if (w % 5 === 0) {
-      q.unshift({ type: 'walker', gap: 200 });
+      q.unshift({ type: 'brute', gap: 180 });
+      q.unshift({ type: 'brute', gap: 220 });
       q.unshift({ type: 'boss', gap: 600 });
     }
     return q;
@@ -253,7 +254,7 @@ class GameScene extends Phaser.Scene {
   }
 
   endWave() {
-    const bonus = 25 + this.wave * 12;
+    const bonus = 18 + this.wave * 7;
     this.addMoney(bonus, CONFIG.WIDTH / 2, 80, '#a6e3a1', `WAVE ${this.wave} CLEARED  +`);
     this.state = 'prep';
     this.prepTimer = CONFIG.PREP_TIME;
@@ -267,10 +268,10 @@ class GameScene extends Phaser.Scene {
     const w = this.wave;
 
     // scale baseline stats by wave number
-    const hpScale = 1 + (w - 1) * (typeKey === 'boss' ? 0.55 : 0.17);
+    const hpScale = 1 + (w - 1) * (typeKey === 'boss' ? 0.7 : 0.27);
     const maxHp = Math.round(t.hp * hpScale);
-    const speed = t.speed + w * 0.6;
-    const bounty = Math.round(t.bounty * (1 + (w - 1) * 0.08));
+    const speed = t.speed + w * 1.2;
+    const bounty = Math.round(t.bounty * (1 + (w - 1) * 0.05));
 
     const y = Phaser.Math.Between(CONFIG.PLAY_TOP + 14, CONFIG.PLAY_BOTTOM - 14);
     const z = this.zombies.create(CONFIG.WIDTH + 24, y, 'zombie');
