@@ -593,7 +593,7 @@ class EndScene extends Phaser.Scene {
 /* ----------------------------------------------------------------------------
  * Boot the game.
  * ------------------------------------------------------------------------- */
-new Phaser.Game({
+window.__game = new Phaser.Game({
   type: Phaser.AUTO,
   width: CONFIG.width,
   height: CONFIG.height,
