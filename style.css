@@ -17,6 +17,97 @@ html, body {
   padding: 16px;
 }
 
+/* ---- top status bar ---- */
+#topbar {
+  width: 100%;
+  max-width: 1180px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 16px;
+  background: #161329;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(137, 180, 250, 0.12);
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.stat .label {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: #7f849c;
+}
+
+.stat b { font-size: 18px; }
+
+#ui-money { color: #a6e3a1; }
+#ui-wave  { color: #89b4fa; }
+
+.stat.hp { flex: 1; }
+
+#ui-hp-bar {
+  position: relative;
+  flex: 1;
+  height: 18px;
+  max-width: 320px;
+  background: #0d0b1a;
+  border-radius: 9px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+#ui-hp-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #f38ba8, #a6e3a1);
+  transition: width 0.15s ease;
+}
+
+#ui-hp-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #11111b;
+  font-weight: 700;
+}
+
+#ui-wave-btn {
+  margin-left: auto;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #11111b;
+  background: #89b4fa;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.05s;
+  min-width: 200px;
+}
+#ui-wave-btn:hover:not(:disabled) { background: #a6c8ff; }
+#ui-wave-btn:active:not(:disabled) { transform: translateY(1px); }
+#ui-wave-btn:disabled {
+  background: #2a2740;
+  color: #6c7086;
+  cursor: default;
+}
+
+/* ---- main stage: game + shop ---- */
+#stage {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+}
+
 #game {
   border-radius: 10px;
   overflow: hidden;
@@ -24,13 +115,112 @@ html, body {
   line-height: 0;
 }
 
-#game canvas {
-  display: block;
+#game canvas { display: block; }
+
+/* ---- shop ---- */
+#shop {
+  width: 260px;
+  background: #161329;
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: inset 0 0 0 1px rgba(137, 180, 250, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+
+#shop h2 {
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  color: #7f849c;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+#upg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+button.upg {
+  text-align: left;
+  background: #1e1b33;
+  border: 1px solid rgba(137, 180, 250, 0.10);
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: #cdd6f4;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, transform 0.05s;
+}
+button.upg:hover:not(:disabled) {
+  border-color: rgba(137, 180, 250, 0.45);
+  background: #25223d;
+}
+button.upg:active:not(:disabled) { transform: translateY(1px); }
+button.upg.can-afford { border-color: rgba(166, 227, 161, 0.45); }
+button.upg:disabled { opacity: 0.45; cursor: default; }
+button.upg.flash { animation: flash 0.35s ease; }
+
+@keyframes flash {
+  0%   { background: #a6e3a1; }
+  100% { background: #1e1b33; }
+}
+
+.upg-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.upg-name { font-size: 14px; font-weight: 600; }
+.upg-cost { font-size: 13px; color: #a6e3a1; font-weight: 700; white-space: nowrap; }
+.upg-cost.maxed { color: #f9e2af; }
+.upg-desc { font-size: 11px; color: #7f849c; margin-top: 2px; }
+.upg-val  { font-size: 11px; color: #89b4fa; margin-top: 3px; }
 
 #hint {
   font-size: 13px;
   letter-spacing: 0.3px;
   color: #7f849c;
   text-align: center;
+  max-width: 760px;
 }
+
+/* ---- game over / start overlay ---- */
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 11, 26, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+#overlay.hidden { display: none; }
+
+#overlay-card {
+  background: #161329;
+  border-radius: 14px;
+  padding: 34px 40px;
+  text-align: center;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(243, 139, 168, 0.25);
+  max-width: 420px;
+}
+#overlay-title { font-size: 26px; color: #f38ba8; margin-bottom: 10px; }
+#overlay-sub { font-size: 15px; color: #bac2de; margin-bottom: 22px; line-height: 1.5; }
+
+#overlay-btn {
+  padding: 11px 26px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #11111b;
+  background: #a6e3a1;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.05s;
+}
+#overlay-btn:hover { background: #c4f0c0; }
+#overlay-btn:active { transform: translateY(1px); }

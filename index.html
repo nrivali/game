@@ -3,16 +3,41 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Crystal Caverns — A Phaser 3 Platformer</title>
+  <title>Last Wall — A Zombie Wave-Defense Game</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="game-wrap">
-    <div id="game"></div>
-    <p id="hint">Arrow keys / WASD to move &middot; Up / W / Space to jump &middot; double-jump enabled &middot; R to restart level</p>
+    <div id="topbar">
+      <div class="stat"><span class="label">WAVE</span><b id="ui-wave">1</b></div>
+      <div class="stat"><span class="label">CASH</span><b id="ui-money">$0</b></div>
+      <div class="stat hp">
+        <span class="label">WALL</span>
+        <span id="ui-hp-bar"><span id="ui-hp-fill"></span><b id="ui-hp-text">100</b></span>
+      </div>
+      <button id="ui-wave-btn">Start Wave</button>
+    </div>
+
+    <div id="stage">
+      <div id="game"></div>
+      <aside id="shop">
+        <h2>Upgrades</h2>
+        <div id="upg-list"></div>
+      </aside>
+    </div>
+
+    <p id="hint">Your turret auto-fires at the nearest zombie &middot; buy upgrades to survive deeper waves</p>
   </div>
+
+  <div id="overlay" class="hidden">
+    <div id="overlay-card">
+      <h1 id="overlay-title">The Wall Has Fallen</h1>
+      <p id="overlay-sub"></p>
+      <button id="overlay-btn">Play Again</button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
-  <script src="src/levels.js"></script>
   <script src="src/game.js"></script>
 </body>
 </html>

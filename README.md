@@ -1,10 +1,11 @@
-# Crystal Caverns
+# Last Wall
 
-A small, self-contained 2D platformer built with **[Phaser 3](https://phaser.io/)**.
-All artwork is generated procedurally at runtime, so the entire game is just a
-few text files — no image or audio assets to manage.
+A small, self-contained **2D zombie wave-defense game** built with
+**[Phaser 3](https://phaser.io/)**. All artwork is generated procedurally at
+runtime, so the entire game is just a few text files — no image or audio assets
+to manage.
 
-![level](https://img.shields.io/badge/levels-3-89b4fa) ![engine](https://img.shields.io/badge/engine-Phaser%203-a6e3a1)
+![waves](https://img.shields.io/badge/mode-endless%20waves-f38ba8) ![engine](https://img.shields.io/badge/engine-Phaser%203-a6e3a1)
 
 ## Play
 
@@ -25,55 +26,72 @@ avoids any cross-origin quirks.
 > CDN. To run fully offline, download `phaser.min.js` and point the
 > `<script>` tag in `index.html` at the local copy.
 
-## Controls
+## How it plays
 
-| Action        | Keys                          |
-| ------------- | ----------------------------- |
-| Move          | `←` `→` or `A` `D`            |
-| Jump          | `↑` `W` or `Space`            |
-| Double jump   | press jump again mid-air       |
-| Restart level | `R`                           |
+Zombies spawn on the right and shamble toward **your wall** on the left. A
+turret mounted on the wall **auto-fires at the nearest zombie** — the fight is
+won through upgrades, not aim. Every kill pays a cash bounty; clearing a wave
+pays a bonus. Spend that cash in the live shop to survive deeper, tougher waves.
+The run ends when the wall's HP hits zero — it's **endless**, so the goal is to
+reach the highest wave you can.
 
-Jump feel includes **coyote time**, a **jump buffer**, and **variable jump
-height** (tap for a short hop, hold for a full jump).
+| Action                | How                                            |
+| --------------------- | ---------------------------------------------- |
+| Fire                  | automatic — the turret tracks the nearest enemy |
+| Buy upgrades          | click an upgrade in the shop (any time)         |
+| Start the next wave   | the **Start Wave** button (early start = bonus) |
+| Restart after a loss  | **Play Again** on the game-over screen          |
 
-## Goal
+Waves auto-start after a short build phase, or you can start early for a cash
+bonus.
 
-Collect crystals (`✦`), **stomp** enemies from above for bonus points, avoid
-spikes and enemy contact, and reach the green **flag** to clear each level.
-Clear all three levels to win. You have three lives.
+## Enemies
+
+| Type     | Appears   | Trait                                   |
+| -------- | --------- | --------------------------------------- |
+| Walker   | wave 1+   | the baseline shambler                   |
+| Runner   | wave 3+   | fast and fragile, shows up in numbers   |
+| Brute    | wave 4+   | slow, heavily armoured, big bounty      |
+| Boss     | every 5th | a giant with a huge health pool         |
+
+Enemy health, speed, and bounty all scale up with the wave number, and zombies
+arrive faster the deeper you get.
+
+## Upgrades
+
+| Upgrade      | Effect                                         |
+| ------------ | ---------------------------------------------- |
+| Damage       | more punch per bullet                          |
+| Fire Rate    | shorter time between shots                     |
+| Multi-Shot   | extra bullet per volley (spread)               |
+| Pierce       | bullets punch through more zombies             |
+| Income       | more cash from every kill                      |
+| Reinforce    | raises max wall HP (and patches the wall)      |
+| Repair Wall  | instantly restore 35% of the wall              |
+
+Each level of an upgrade costs more than the last, so deciding what to invest in
+— raw firepower, economy, or staying alive — is the core of the game.
 
 ## Project layout
 
 ```
-index.html      # page shell, loads Phaser + the game scripts
-style.css       # page styling around the canvas
-src/levels.js   # the three levels as editable ASCII grids
-src/game.js     # all game logic (Boot, Menu, Game, End scenes)
+index.html   # page shell + top bar / shop DOM, loads Phaser + the game
+style.css    # page, HUD, shop, and overlay styling
+src/game.js  # all game logic (BootScene builds textures, GameScene runs it)
 ```
 
-## Designing your own levels
+## Tuning the game
 
-Levels live in `src/levels.js` as arrays of equal-length strings, one character
-per 32×32 tile:
+The knobs worth tweaking live at the top of `src/game.js`:
 
-| Char | Meaning                              |
-| ---- | ------------------------------------ |
-| `X`  | solid ground / wall                  |
-| `o`  | coin                                 |
-| `^`  | spike (costs a life)                 |
-| `e`  | enemy (patrols its platform)         |
-| `-`  | horizontally-moving platform         |
-| `\|` | vertically-moving platform           |
-| `P`  | player spawn (exactly one)           |
-| `G`  | goal flag (exactly one)              |
-| `.`  | empty space                          |
+- **`CONFIG`** — canvas size, wall/turret positions, bullet speed, the build-phase
+  timer, and the early-start bonus.
+- **`ZTYPES`** — each zombie archetype's wave-1 baseline HP, speed, bounty,
+  damage, size, and colour. (Per-wave scaling is applied in `spawnZombie`.)
+- **Wave composition** — `buildWave()` controls how many zombies spawn, which
+  types are unlocked when, and the boss cadence.
+- **Upgrades** — the `this.UPG` array in `buildShop()` defines each shop item's
+  cost curve, cap, and effect; the derived-stat getters near the top of
+  `GameScene` turn upgrade levels into actual numbers.
 
-Keep every row in a level the same length, then add a new array to the `LEVELS`
-list to create a new stage — the game picks it up automatically.
-
-## Tuning the feel
-
-Gameplay constants (gravity, move speed, jump strength, coyote/buffer windows,
-number of lives, etc.) are all in the `CONFIG` block at the top of
-`src/game.js`. Tweak and reload.
+Tweak and reload — no build step.
