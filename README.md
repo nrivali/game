@@ -28,17 +28,18 @@ avoids any cross-origin quirks.
 
 ## How it plays
 
-Zombies spawn on the right and shamble toward **your wall** on the left. A
-turret mounted on the wall **auto-fires at the nearest zombie** — the fight is
-won through upgrades, not aim. Every kill pays a cash bounty; clearing a wave
-pays a bonus. Spend that cash in the live shop to survive deeper, tougher waves.
-The run ends when the wall's HP hits zero — it's **endless**, so the goal is to
-reach the highest wave you can.
+Zombies spawn on the right and shamble toward **your wall** on the left.
+Turrets mounted on the wall **auto-fire at the nearest zombie** — the fight is
+won by building an arsenal, not by aiming. Every kill pays a cash bounty;
+clearing a wave pays a bonus. Spend that cash in the live shop on **more
+turrets, new turret types, and global upgrades** to survive deeper, tougher
+waves. The run ends when the wall's HP hits zero — it's **endless**, so the goal
+is to reach the highest wave you can.
 
 | Action                | How                                            |
 | --------------------- | ---------------------------------------------- |
-| Fire                  | automatic — the turret tracks the nearest enemy |
-| Buy upgrades          | click an upgrade in the shop (any time)         |
+| Fire                  | automatic — each turret tracks the nearest enemy |
+| Buy turrets/upgrades  | click an item in the shop (any time)            |
 | Start the next wave   | the **Start Wave** button (early start = bonus) |
 | Restart after a loss  | **Play Again** on the game-over screen          |
 
@@ -57,20 +58,39 @@ bonus.
 Enemy health, speed, and bounty all scale up with the wave number, and zombies
 arrive faster the deeper you get.
 
+## Turrets
+
+You start with a single **Gunner**. Buy more from the shop — up to six slots
+along the wall — mixing and matching types. Each extra turret costs more than
+the last, regardless of type, so an arsenal is a real investment.
+
+| Turret   | Role                                              |
+| -------- | ------------------------------------------------- |
+| Gunner   | reliable, balanced single shot                    |
+| Gatling  | very fast fire, low damage — melts crowds          |
+| Sniper   | slow, huge damage, pierces deep through a line     |
+| Scatter  | a wide six-pellet shotgun blast                    |
+| Frost    | low damage but **chills zombies, slowing them**    |
+| Cannon   | slow shots that **explode for area damage**        |
+
 ## Upgrades
+
+Global upgrades scale **every turret you own**, so they get stronger the bigger
+your arsenal:
 
 | Upgrade      | Effect                                         |
 | ------------ | ---------------------------------------------- |
-| Damage       | more punch per bullet                          |
-| Fire Rate    | shorter time between shots                     |
-| Multi-Shot   | extra bullet per volley (spread)               |
-| Pierce       | bullets punch through more zombies             |
-| Income       | more cash from every kill                      |
-| Reinforce    | raises max wall HP (and patches the wall)      |
-| Repair Wall  | instantly restore 35% of the wall              |
+| Damage       | +% damage to all turrets                       |
+| Fire Rate    | all turrets fire faster                         |
+| Multi-Shot   | +1 bullet per turret volley                     |
+| Pierce       | all bullets punch through more zombies          |
+| Income       | more cash from every kill                       |
+| Reinforce    | raises max wall HP (and patches the wall)       |
+| Repair Wall  | instantly restore 35% of the wall               |
 
 Each level of an upgrade costs more than the last, so deciding what to invest in
-— raw firepower, economy, or staying alive — is the core of the game.
+— more turrets, the right turret mix, raw firepower, economy, or staying alive —
+is the core of the game.
 
 ## Project layout
 
@@ -84,14 +104,17 @@ src/game.js  # all game logic (BootScene builds textures, GameScene runs it)
 
 The knobs worth tweaking live at the top of `src/game.js`:
 
-- **`CONFIG`** — canvas size, wall/turret positions, bullet speed, the build-phase
-  timer, and the early-start bonus.
+- **`CONFIG`** — canvas size, wall/turret positions, turret-slot count, the
+  build-phase timer, and the early-start bonus.
 - **`ZTYPES`** — each zombie archetype's wave-1 baseline HP, speed, bounty,
   damage, size, and colour. (Per-wave scaling is applied in `spawnZombie`.)
+- **`TURRET_TYPES`** — each turret's price, damage, fire rate, projectile count,
+  spread, pierce, bullet speed, and special (`splash` radius or `slow`). The
+  `Turret` class turns those into shots; `turretCost()` sets the price curve.
 - **Wave composition** — `buildWave()` controls how many zombies spawn, which
   types are unlocked when, and the boss cadence.
-- **Upgrades** — the `this.UPG` array in `buildShop()` defines each shop item's
-  cost curve, cap, and effect; the derived-stat getters near the top of
-  `GameScene` turn upgrade levels into actual numbers.
+- **Upgrades** — the `this.UPG` array in `buildUpgradeShop()` defines each global
+  upgrade's cost curve, cap, and effect; the modifier getters near the top of
+  `GameScene` (`damageMult`, `cooldownMult`, …) turn levels into actual numbers.
 
 Tweak and reload — no build step.

@@ -31,7 +31,7 @@ const CONFIG = {
   WALL_X: 78,          // right face of the wall — zombies attack on contact
   TURRET_X: 70,        // turret pivot, mounted on the wall
 
-  BULLET_SPEED: 660,
+  MAX_TURRETS: 6,      // slots available along the wall
 
   PREP_TIME: 9,         // seconds of build time between waves (auto-starts)
   EARLY_BONUS: 20,      // cash for starting a wave during prep
@@ -45,6 +45,107 @@ const ZTYPES = {
   brute:  { hp: 120, speed: 21, bounty: 22,  dmg: 30,  scale: 1.6, tint: 0x6f9f95, label: true  },
   boss:   { hp: 900, speed: 19, bounty: 180, dmg: 95,  scale: 2.7, tint: 0xc25b5b, label: true  },
 };
+
+/* turret archetypes. Each defines its own base firepower and a behaviour; the
+ * global shop upgrades (damage / fire rate / multi-shot / pierce) then scale
+ * every turret you own. `cost` is the base price — buying more turrets makes
+ * the next one pricier regardless of type (see turretCost). Specials:
+ *   splash — bullet explodes on impact, damaging everything in a radius
+ *   slow   — bullet chills the zombie it hits, cutting its speed for a while  */
+const TURRET_TYPES = {
+  gunner:  { name: 'Gunner',  icon: '🔫', cost: 55,  color: 0x89b4fa, bullet: 0xfff2a8,
+             dmg: 9,  cd: 500,  proj: 1, spread: 0.12, pierce: 0, speed: 660,
+             desc: 'Reliable all-rounder', stat: 'balanced single shot' },
+  gatling: { name: 'Gatling', icon: '⚙️', cost: 120, color: 0xf9e2af, bullet: 0xfff2a8,
+             dmg: 4,  cd: 120,  proj: 1, spread: 0.10, pierce: 0, speed: 760,
+             desc: 'Very fast, low damage', stat: 'rapid fire' },
+  sniper:  { name: 'Sniper',  icon: '🎯', cost: 150, color: 0xf38ba8, bullet: 0xff8a8a,
+             dmg: 48, cd: 1150, proj: 1, spread: 0,    pierce: 4, speed: 1200,
+             desc: 'Slow, huge damage, deep pierce', stat: 'high dmg · pierces 5' },
+  scatter: { name: 'Scatter', icon: '💥', cost: 140, color: 0xfab387, bullet: 0xffd9a8,
+             dmg: 6,  cd: 720,  proj: 6, spread: 0.55, pierce: 0, speed: 580,
+             desc: 'Wide shotgun blast', stat: '6-pellet spread' },
+  frost:   { name: 'Frost',   icon: '❄️', cost: 160, color: 0x9bd3ff, bullet: 0xc4ecff,
+             dmg: 4,  cd: 420,  proj: 1, spread: 0.12, pierce: 1, speed: 620,
+             desc: 'Chills and slows zombies', stat: 'slows on hit',
+             slow: { factor: 0.45, dur: 1300 } },
+  cannon:  { name: 'Cannon',  icon: '🧨', cost: 190, color: 0xa6e3a1, bullet: 0xcaffc4,
+             dmg: 20, cd: 1050, proj: 1, spread: 0,    pierce: 0, speed: 470,
+             desc: 'Explosive area damage', stat: 'splash damage',
+             splash: 72 },
+};
+const TURRET_ORDER = ['gunner', 'gatling', 'sniper', 'scatter', 'frost', 'cannon'];
+
+/* ----------------------------------------------------------------------------
+ * Turret — one auto-firing emplacement on the wall. Stats come from its type
+ * crossed with the player's global upgrade multipliers (read off the scene).
+ * --------------------------------------------------------------------------*/
+class Turret {
+  constructor(scene, typeKey) {
+    this.scene = scene;
+    this.typeKey = typeKey;
+    this.type = TURRET_TYPES[typeKey];
+    this.cd = 0;
+    this.x = CONFIG.TURRET_X;
+    this.y = CONFIG.HEIGHT / 2;
+
+    this.hub = scene.add.image(this.x, this.y, 'turret').setDepth(6);
+    this.barrel = scene.add.image(this.x, this.y, 'barrel')
+      .setOrigin(0.12, 0.5).setDepth(7).setTint(this.type.color);
+    this.muzzle = scene.add.image(0, 0, 'flash').setDepth(8).setVisible(false)
+      .setTint(this.type.bullet);
+  }
+
+  place(x, y) {
+    this.x = x; this.y = y;
+    this.hub.setPosition(x, y);
+    this.barrel.setPosition(x, y);
+  }
+
+  update(dms) {
+    this.cd -= dms;
+    const target = this.scene.nearestZombieTo(this.x, this.y);
+    if (!target) return;
+    const a = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
+    this.barrel.rotation = Phaser.Math.Angle.RotateTo(this.barrel.rotation, a, 0.3);
+    if (this.cd <= 0) {
+      this.fire(this.barrel.rotation);
+      this.cd = this.type.cd * this.scene.cooldownMult;
+    }
+  }
+
+  fire(angle) {
+    const s = this.scene, t = this.type;
+    const n = t.proj + s.extraProjectiles;
+    // tight-firing turrets still fan out a little once multi-shot is added
+    const spread = t.spread || (n > 1 ? 0.09 : 0);
+    const start = -spread * (n - 1) / 2;
+    const dmg = t.dmg * s.damageMult;
+    for (let i = 0; i < n; i++) {
+      const ang = n > 1 ? angle + start + i * spread : angle;
+      s.spawnBullet({
+        x: this.x + Math.cos(ang) * 28,
+        y: this.y + Math.sin(ang) * 28,
+        angle: ang, speed: t.speed, dmg,
+        pierce: t.pierce + s.extraPierce,
+        splash: t.splash || 0,
+        slow: t.slow || null,
+        color: t.bullet,
+      });
+    }
+    this.flash(angle);
+  }
+
+  flash(angle) {
+    const mx = this.x + Math.cos(angle) * 30, my = this.y + Math.sin(angle) * 30;
+    this.muzzle.setPosition(mx, my).setVisible(true)
+      .setScale(Phaser.Math.FloatBetween(0.6, 1.0));
+    this.scene.time.delayedCall(45, () => this.muzzle.setVisible(false));
+    // recoil kick back along the firing line
+    this.barrel.setPosition(this.x - Math.cos(angle) * 3, this.y - Math.sin(angle) * 3);
+    this.scene.tweens.add({ targets: this.barrel, x: this.x, y: this.y, duration: 70 });
+  }
+}
 
 /* ----------------------------------------------------------------------------
  * BootScene — procedural textures
@@ -127,7 +228,6 @@ class GameScene extends Phaser.Scene {
     this.prepTimer = C.PREP_TIME;
     this.spawnQueue = [];     // pending zombies for the active wave
     this.spawnTimer = 0;
-    this.autoCd = 0;          // turret auto-fire cooldown (ms)
 
     // upgrade levels (0-based). Derived stats are getters below.
     this.lv = { damage: 0, fireRate: 0, multishot: 0, pierce: 0, income: 0, maxhp: 0 };
@@ -142,11 +242,9 @@ class GameScene extends Phaser.Scene {
     this.bullets = this.physics.add.group();
     this.physics.add.overlap(this.bullets, this.zombies, this.onBulletHit, null, this);
 
-    // turret
-    this.add.image(C.TURRET_X, C.HEIGHT / 2, 'turret').setDepth(6);
-    this.barrel = this.add.image(C.TURRET_X, C.HEIGHT / 2, 'barrel')
-      .setOrigin(0.12, 0.5).setDepth(7);
-    this.muzzle = this.add.image(0, 0, 'flash').setDepth(8).setVisible(false);
+    // turrets — start with a single free Gunner; buy more in the shop
+    this.turrets = [];
+    this.placeTurret('gunner');
 
     // hp-bar overlay for zombies (one Graphics, redrawn each frame)
     this.hpGfx = this.add.graphics().setDepth(9);
@@ -157,13 +255,33 @@ class GameScene extends Phaser.Scene {
     this.refreshUI();
   }
 
-  /* ---- derived stats (read straight off upgrade levels) ---- */
-  get damage()      { return 8 + this.lv.damage * 5; }
-  get cooldown()    { return Math.max(95, 620 - this.lv.fireRate * 42); } // ms between auto shots
-  get projectiles() { return 1 + this.lv.multishot; }
-  get pierce()      { return this.lv.pierce; }            // extra enemies pierced
-  get incomeMult()  { return 1 + this.lv.income * 0.25; }
-  get maxHp()       { return 100 + this.lv.maxhp * 45; }
+  /* ---- global modifiers: these scale every turret you own ---- */
+  get damageMult()       { return 1 + this.lv.damage * 0.22; }
+  get cooldownMult()     { return Math.max(0.35, 1 - this.lv.fireRate * 0.07); }
+  get extraProjectiles() { return this.lv.multishot; }   // +bullets per turret volley
+  get extraPierce()      { return this.lv.pierce; }      // +enemies pierced
+  get incomeMult()       { return 1 + this.lv.income * 0.25; }
+  get maxHp()            { return 100 + this.lv.maxhp * 45; }
+
+  /* ---- turrets ---- */
+  placeTurret(typeKey) {
+    this.turrets.push(new Turret(this, typeKey));
+    this.reflowTurrets();
+  }
+
+  // spread the turrets evenly down the wall whenever their number changes
+  reflowTurrets() {
+    const n = this.turrets.length;
+    const top = CONFIG.PLAY_TOP + 8, bot = CONFIG.PLAY_BOTTOM - 8;
+    this.turrets.forEach((t, i) => {
+      const y = n === 1 ? (top + bot) / 2 : top + (bot - top) * (i / (n - 1));
+      t.place(CONFIG.TURRET_X, y);
+    });
+  }
+
+  turretCost(typeKey) {
+    return Math.round(TURRET_TYPES[typeKey].cost * Math.pow(1.3, this.turrets.length));
+  }
 
   /* ====================================================================== */
   /* main loop                                                              */
@@ -179,7 +297,7 @@ class GameScene extends Phaser.Scene {
       this.handleSpawning(dms);
     }
 
-    this.updateTurret(dms);
+    this.turrets.forEach((t) => t.update(dms));
     this.updateZombies();
     this.cullBullets();
     this.drawHpBars();
@@ -270,15 +388,30 @@ class GameScene extends Phaser.Scene {
     z.dmg = t.dmg;
     z.bounty = bounty;
     z.showBar = t.label;
+    z.speed = speed;        // full-speed magnitude, restored when a slow wears off
+    z.slowUntil = 0;
+    z.wasSlowed = false;
     return z;
   }
 
   updateZombies() {
-    const reach = CONFIG.WALL_X;
+    const reach = CONFIG.WALL_X, now = this.time.now;
     this.zombies.getChildren().forEach((z) => {
       if (!z.active) return;
       // shamble bob
-      z.y += Math.sin(this.time.now / 120 + z.x) * 0.18;
+      z.y += Math.sin(now / 120 + z.x) * 0.18;
+
+      // frost slow: keep a chilled tint while active, restore speed when it ends
+      const slowed = z.slowUntil > now;
+      if (slowed) {
+        z.wasSlowed = true;
+        z.setTint(0x9bd3ff);
+      } else if (z.wasSlowed) {
+        z.wasSlowed = false;
+        z.body.velocity.x = -z.speed;
+        z.setTint(ZTYPES[z.zType].tint);
+      }
+
       if (z.x <= reach) {
         this.damageWall(z.dmg, z.y);
         this.spawnBits(reach + 6, z.y, 0x9b6b6b, 7);
@@ -307,63 +440,30 @@ class GameScene extends Phaser.Scene {
   }
 
   /* ====================================================================== */
-  /* turret + bullets                                                       */
+  /* bullets + targeting                                                    */
   /* ====================================================================== */
-  updateTurret(dms) {
-    this.autoCd = Math.max(0, this.autoCd - dms);
-
-    const target = this.nearestZombie();
-    if (target) {
-      const a = Phaser.Math.Angle.Between(CONFIG.TURRET_X, CONFIG.HEIGHT / 2, target.x, target.y);
-      // ease the barrel toward the target for a smooth swivel
-      this.barrel.rotation = Phaser.Math.Angle.RotateTo(this.barrel.rotation, a, 0.25);
-      if (this.autoCd <= 0) {
-        this.fireSpread(this.barrel.rotation);
-        this.autoCd = this.cooldown;
-      }
-    }
-  }
-
-  nearestZombie() {
+  nearestZombieTo(x, y) {
     let best = null, bestD = Infinity;
     this.zombies.getChildren().forEach((z) => {
       if (!z.active) return;
-      const d = Phaser.Math.Distance.Squared(CONFIG.TURRET_X, CONFIG.HEIGHT / 2, z.x, z.y);
+      const d = Phaser.Math.Distance.Squared(x, y, z.x, z.y);
       if (d < bestD) { bestD = d; best = z; }
     });
     return best;
   }
 
-  // auto-fire honours the multi-shot upgrade as an even spread
-  fireSpread(angle) {
-    const n = this.projectiles;
-    const spread = 0.16;
-    const start = -spread * (n - 1) / 2;
-    for (let i = 0; i < n; i++) this.fireBullet(angle + start + i * spread);
-    this.flashMuzzle(angle);
-  }
-
-  fireBullet(angle) {
-    const tipX = CONFIG.TURRET_X + Math.cos(angle) * 28;
-    const tipY = CONFIG.HEIGHT / 2 + Math.sin(angle) * 28;
-    const b = this.bullets.create(tipX, tipY, 'bullet').setDepth(5);
+  // create a single bullet from a turret's firing parameters
+  spawnBullet(o) {
+    const b = this.bullets.create(o.x, o.y, 'bullet').setDepth(5).setTint(o.color);
     b.body.setSize(8, 8);
-    this.physics.velocityFromRotation(angle, CONFIG.BULLET_SPEED, b.body.velocity);
-    b.rotation = angle;
-    b.dmg = this.damage;
-    b.pierceLeft = this.pierce;
+    this.physics.velocityFromRotation(o.angle, o.speed, b.body.velocity);
+    b.rotation = o.angle;
+    b.dmg = o.dmg;
+    b.pierceLeft = o.pierce;
+    b.splash = o.splash;
+    b.slow = o.slow;
     b.hitSet = new Set(); // avoid hitting the same zombie on consecutive frames
-  }
-
-  flashMuzzle(angle) {
-    const x = CONFIG.TURRET_X + Math.cos(angle) * 30;
-    const y = CONFIG.HEIGHT / 2 + Math.sin(angle) * 30;
-    this.muzzle.setPosition(x, y).setVisible(true).setScale(Phaser.Math.FloatBetween(0.7, 1.1));
-    this.time.delayedCall(45, () => this.muzzle.setVisible(false));
-    // recoil kick
-    this.barrel.x = CONFIG.TURRET_X - Math.cos(angle) * 3;
-    this.barrel.y = CONFIG.HEIGHT / 2 - Math.sin(angle) * 3;
-    this.tweens.add({ targets: this.barrel, x: CONFIG.TURRET_X, y: CONFIG.HEIGHT / 2, duration: 70 });
+    if (o.splash) b.setScale(1.5);
   }
 
   onBulletHit(bullet, zombie) {
@@ -371,11 +471,37 @@ class GameScene extends Phaser.Scene {
     if (bullet.hitSet.has(zombie)) return;
     bullet.hitSet.add(zombie);
 
+    // explosive rounds detonate on first contact and ignore pierce
+    if (bullet.splash) {
+      this.explode(bullet.x, bullet.y, bullet.splash, bullet.dmg);
+      bullet.destroy();
+      return;
+    }
+
     this.spawnBits(zombie.x, zombie.y, 0xfff2a8, 3);
+    if (bullet.slow) this.applySlow(zombie, bullet.slow);
     this.damageZombie(zombie, bullet.dmg);
 
     if (bullet.pierceLeft > 0) bullet.pierceLeft -= 1;
     else bullet.destroy();
+  }
+
+  // area damage for cannon rounds
+  explode(x, y, radius, dmg) {
+    const ring = this.add.circle(x, y, radius, 0xfab387, 0.35).setDepth(11);
+    this.tweens.add({ targets: ring, scale: 1.4, alpha: 0, duration: 240,
+      onComplete: () => ring.destroy() });
+    this.spawnBits(x, y, 0xffb86c, 14);
+    const r2 = radius * radius;
+    this.zombies.getChildren().forEach((z) => {
+      if (!z.active) return;
+      if (Phaser.Math.Distance.Squared(x, y, z.x, z.y) <= r2) this.damageZombie(z, dmg);
+    });
+  }
+
+  applySlow(z, slow) {
+    z.slowUntil = this.time.now + slow.dur;
+    z.body.velocity.x = -z.speed * slow.factor;
   }
 
   cullBullets() {
@@ -435,16 +561,43 @@ class GameScene extends Phaser.Scene {
   /* shop                                                                   */
   /* ====================================================================== */
   buildShop() {
-    // id, name, icon, description, cost curve, level cap, current-value text
+    this.buildTurretShop();
+    this.buildUpgradeShop();
+  }
+
+  // a card per turret type — buying one drops it into the next free slot
+  buildTurretShop() {
+    const list = document.getElementById('turret-list');
+    list.innerHTML = '';
+    this.turretBtns = {};
+    TURRET_ORDER.forEach((key) => {
+      const t = TURRET_TYPES[key];
+      const btn = document.createElement('button');
+      btn.className = 'upg';
+      btn.innerHTML =
+        `<div class="upg-top"><span class="upg-name">${t.icon} ${t.name}</span>` +
+        `<span class="upg-cost"></span></div>` +
+        `<div class="upg-desc">${t.desc}</div>` +
+        `<div class="upg-val">${t.stat}</div>`;
+      btn.addEventListener('click', () => this.buyTurret(key));
+      list.appendChild(btn);
+      this.turretBtns[key] = { btn, cost: btn.querySelector('.upg-cost') };
+    });
+  }
+
+  buildUpgradeShop() {
+    // global upgrades — each one scales every turret you own
     this.UPG = [
-      { id: 'damage', name: 'Damage', icon: '🔫', desc: 'More punch per bullet',
-        base: 30, mul: 1.55, max: 60, val: () => `${this.damage} dmg / shot` },
-      { id: 'fireRate', name: 'Fire Rate', icon: '⚡', desc: 'Shorter time between shots',
-        base: 35, mul: 1.6, max: 12, val: () => `${(1000 / this.cooldown).toFixed(1)} shots / s` },
-      { id: 'multishot', name: 'Multi-Shot', icon: '🎯', desc: 'Extra bullet per volley',
-        base: 90, mul: 2.0, max: 6, val: () => `${this.projectiles} bullets / volley` },
-      { id: 'pierce', name: 'Pierce', icon: '➶', desc: 'Bullets punch through more zombies',
-        base: 110, mul: 2.1, max: 6, val: () => `hits ${this.pierce + 1} zombie${this.pierce ? 's' : ''}` },
+      { id: 'damage', name: 'Damage', icon: '💪', desc: 'All turrets hit harder',
+        base: 35, mul: 1.55, max: 40,
+        val: () => `+${Math.round((this.damageMult - 1) * 100)}% damage` },
+      { id: 'fireRate', name: 'Fire Rate', icon: '⚡', desc: 'All turrets fire faster',
+        base: 40, mul: 1.6, max: 9,
+        val: () => `+${Math.round((1 - this.cooldownMult) * 100)}% fire rate` },
+      { id: 'multishot', name: 'Multi-Shot', icon: '🎯', desc: '+1 bullet per turret volley',
+        base: 110, mul: 2.0, max: 5, val: () => `+${this.extraProjectiles} bullets / volley` },
+      { id: 'pierce', name: 'Pierce', icon: '➶', desc: 'All bullets pierce more zombies',
+        base: 120, mul: 2.1, max: 5, val: () => `+${this.extraPierce} pierce` },
       { id: 'income', name: 'Income', icon: '💰', desc: 'More cash from every kill',
         base: 70, mul: 1.7, max: 12, val: () => `x${this.incomeMult.toFixed(2)} bounty` },
       { id: 'maxhp', name: 'Reinforce', icon: '🧱', desc: 'Raises max wall HP (and heals it)',
@@ -469,6 +622,20 @@ class GameScene extends Phaser.Scene {
       u._cost = btn.querySelector('.upg-cost');
       u._val = btn.querySelector('.upg-val');
     });
+  }
+
+  buyTurret(key) {
+    if (this.state === 'over') return;
+    if (this.turrets.length >= CONFIG.MAX_TURRETS) return;
+    const cost = this.turretCost(key);
+    if (this.money < cost) return;
+    this.money -= cost;
+    this.placeTurret(key);
+
+    const b = this.turretBtns[key].btn;
+    b.classList.remove('flash'); void b.offsetWidth; // restart anim
+    b.classList.add('flash');
+    this.refreshUI();
   }
 
   costOf(u) {
@@ -544,7 +711,25 @@ class GameScene extends Phaser.Scene {
         : `Start Wave ${next}  (${Math.ceil(this.prepTimer)}s)`;
     }
 
-    // shop buttons
+    // turret cards
+    const full = this.turrets.length >= CONFIG.MAX_TURRETS;
+    document.getElementById('turret-count').textContent = `${this.turrets.length}/${CONFIG.MAX_TURRETS}`;
+    TURRET_ORDER.forEach((key) => {
+      const ref = this.turretBtns[key];
+      const cost = this.turretCost(key);
+      if (full) {
+        ref.cost.textContent = 'FULL';
+        ref.cost.classList.add('maxed');
+      } else {
+        ref.cost.textContent = '$' + cost;
+        ref.cost.classList.remove('maxed');
+      }
+      const affordable = !full && this.money >= cost && this.state !== 'over';
+      ref.btn.disabled = full || this.money < cost || this.state === 'over';
+      ref.btn.classList.toggle('can-afford', affordable);
+    });
+
+    // upgrade cards
     this.UPG.forEach((u) => {
       const maxed = this.isMaxed(u);
       const cost = this.costOf(u);

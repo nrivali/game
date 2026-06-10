@@ -119,14 +119,15 @@ html, body {
 
 /* ---- shop ---- */
 #shop {
-  width: 260px;
+  width: 272px;
   background: #161329;
   border-radius: 10px;
   padding: 14px;
   box-shadow: inset 0 0 0 1px rgba(137, 180, 250, 0.12);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  overflow-y: auto;
 }
 
 #shop h2 {
@@ -135,13 +136,25 @@ html, body {
   color: #7f849c;
   font-weight: 700;
   text-transform: uppercase;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  background: #161329;
+  padding: 2px 0;
 }
 
-#upg-list {
+#shop h2 .count {
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: #89b4fa;
+}
+
+#turret-list, #upg-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
 }
 
 button.upg {
