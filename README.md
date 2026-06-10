@@ -9,8 +9,13 @@ to manage.
 
 ## Play
 
-Because the game loads Phaser from a CDN and uses relative script paths, the
-simplest way to run it is a tiny local web server:
+The game runs **fully offline** — Phaser ships with the repo in `vendor/`, so no
+internet connection is needed. The simplest way to play is to open the page in
+your browser:
+
+- **Quickest:** double-click `index.html` (or, on Windows PowerShell, run
+  `start index.html`). It works over `file://` in most browsers.
+- **Or via a tiny local server** (avoids any `file://` quirks):
 
 ```bash
 # from the project root
@@ -18,13 +23,12 @@ python3 -m http.server 8000
 # then open http://localhost:8000 in your browser
 ```
 
-Any static server works (`npx serve`, VS Code Live Server, etc.). Opening
-`index.html` directly via `file://` also works in most browsers, but a server
-avoids any cross-origin quirks.
+Any static server works (`npx serve`, VS Code Live Server, etc.).
 
-> An internet connection is required the first time, to pull Phaser from the
-> CDN. To run fully offline, download `phaser.min.js` and point the
-> `<script>` tag in `index.html` at the local copy.
+> Phaser is vendored as `vendor/phaser.min.js` (v3.80.1) and loaded with a
+> relative path, so the game needs nothing from the network. To switch back to
+> the CDN, point the `<script>` tag in `index.html` at
+> `https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js`.
 
 ## How it plays
 
@@ -95,9 +99,10 @@ is the core of the game.
 ## Project layout
 
 ```
-index.html   # page shell + top bar / shop DOM, loads Phaser + the game
-style.css    # page, HUD, shop, and overlay styling
-src/game.js  # all game logic (BootScene builds textures, GameScene runs it)
+index.html           # page shell + top bar / shop DOM, loads Phaser + the game
+style.css            # page, HUD, shop, and overlay styling
+src/game.js          # all game logic (BootScene builds textures, GameScene runs it)
+vendor/phaser.min.js # bundled Phaser 3 (so the game runs fully offline)
 ```
 
 ## Tuning the game
